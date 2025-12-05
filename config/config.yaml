@@ -1,0 +1,12 @@
+qdrant:
+  host: "localhost"
+  port: 6334
+
+openAI:
+  baseURL: "https://openrouter.ai/api/v1"
+  apiKey: ""
+
+temporal:
+  hostPort: "localhost:7233"
+
+mcpServer: "http://localhost:8085/mcp"
