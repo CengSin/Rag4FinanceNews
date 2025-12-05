@@ -4,11 +4,13 @@ import (
 	"context"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/sashabaranov/go-openai"
 	"log"
 )
 
 var (
 	McpClient *client.Client
+	Tools     []openai.Tool
 )
 
 func InitMcpClient(server string) {
@@ -50,4 +52,22 @@ func createStreamableHTTPClient(server string) {
 
 	log.Printf("Available tools: %d", len(tools.Tools))
 	McpClient = c
+}
+
+func InitTools() {
+	resp, err := McpClient.ListTools(context.Background(), mcp.ListToolsRequest{})
+	if err != nil {
+		panic(err)
+	}
+
+	for _, t := range resp.Tools {
+		Tools = append(Tools, openai.Tool{
+			Type: "function",
+			Function: &openai.FunctionDefinition{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters:  t.InputSchema, // MCP 的 Schema 和 OpenAI 是完全兼容的！
+			},
+		})
+	}
 }

@@ -35,6 +35,7 @@ type ChatWithLLMParams struct {
 type MessagesReq struct {
 	SessionId string `json:"session_id"`
 	Question  string `json:"question"`
+	Update    bool   `json:"-"`
 }
 
 type UpdateMessagesReq struct {

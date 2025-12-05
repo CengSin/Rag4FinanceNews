@@ -171,3 +171,60 @@ func QuestionOnTemporal(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]interface{}{"answer": answer})
 }
+
+var (
+	sessions = map[string]temporalClient.WorkflowRun{}
+)
+
+func QuestionWithSessionOnTemporal(c echo.Context) error {
+	ctx := c.Request().Context()
+	sessionId := c.FormValue("session_id")
+	question := c.FormValue("question")
+	if len(question) == 0 {
+		return nil
+	}
+
+	_, exist := sessions[sessionId]
+	if !exist {
+		sessionId = uuid.New().String()
+		// 2. 配置工作流选项
+		startWorkflowOptions := temporalClient.StartWorkflowOptions{
+			// ID 是去重的关键！
+			// 如果使用了相同的 ID 再次提交，Temporal 默认会报错（防止重复处理同一篇文章）
+			ID:        "search_article_" + uuid.New().String(),
+			TaskQueue: TaskQueueName,
+		}
+
+		wf1, err := client.Temporal.ExecuteWorkflow(ctx, startWorkflowOptions, rWorkflow.ChatWorkflow)
+		if err != nil {
+			return err
+		}
+
+		sessions[sessionId] = wf1
+	}
+
+	wf := sessions[sessionId]
+	handle, err := client.Temporal.UpdateWorkflow(ctx, temporalClient.UpdateWorkflowOptions{
+		WorkflowID:   wf.GetID(),
+		RunID:        wf.GetRunID(),
+		UpdateName:   "chat_messages",
+		WaitForStage: temporalClient.WorkflowUpdateStageCompleted,
+		Args: []interface{}{
+			activity.MessagesReq{
+				SessionId: sessionId,
+				Question:  question,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	var answer string
+	err = handle.Get(ctx, &answer)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{"answer": answer, "session_id": sessionId})
+}
