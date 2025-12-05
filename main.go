@@ -20,6 +20,7 @@ func main() {
 	var cfg config.Config
 	cleanenv.ReadConfig("./config/config.yaml", &cfg)
 
+	client.InitRedis(cfg.Redis)
 	client.InitQdrant(cfg.Qdrant)
 	client.InitLLMs(cfg.OpenAI)
 	client.InitTemporal(cfg.Temporal)
@@ -53,7 +54,7 @@ func main() {
 	articleGrp.POST("/process", api.ProcessedArticle)
 
 	sessionGrp := e.Group("/session")
-	sessionGrp.GET("/new", api.NewSession)
+	sessionGrp.GET("/chat/messages", api.NewSession)
 
 	aiGrp := e.Group("/ai")
 	aiGrp.POST("/query", api.Question)

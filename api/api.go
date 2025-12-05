@@ -144,6 +144,10 @@ func QuestionOnTemporal(c echo.Context) error {
 		return nil
 	}
 
+	if len(sessionId) == 0 {
+		sessionId = uuid.New().String()
+	}
+
 	// 2. 配置工作流选项
 	startWorkflowOptions := temporalClient.StartWorkflowOptions{
 		// ID 是去重的关键！
@@ -152,7 +156,10 @@ func QuestionOnTemporal(c echo.Context) error {
 		TaskQueue: TaskQueueName,
 	}
 
-	wf, err := client.Temporal.ExecuteWorkflow(ctx, startWorkflowOptions, rWorkflow.RagChatWorkflow, question)
+	wf, err := client.Temporal.ExecuteWorkflow(ctx, startWorkflowOptions, rWorkflow.RagChatWorkflow, activity.MessagesReq{
+		SessionId: sessionId,
+		Question:  question,
+	})
 	if err != nil {
 		return err
 	}

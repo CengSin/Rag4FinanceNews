@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/qdrant/go-client/qdrant"
+	"github.com/redis/go-redis/v9"
 	"github.com/sashabaranov/go-openai"
 	"go.temporal.io/sdk/client"
 	"log"
@@ -13,6 +14,7 @@ var (
 	Qdrant   *qdrant.Client
 	AI       *openai.Client
 	Temporal client.Client
+	Redis    *redis.Client
 )
 
 func InitQdrant(cfg *config.QdrantConfig) {
@@ -60,8 +62,21 @@ func InitTemporal(cfg *config.TemporalConfig) {
 	Temporal = cl
 }
 
+func InitRedis(cfg *config.RedisConfig) {
+	if cfg == nil {
+		panic("temporal config is nil")
+	}
+
+	Redis = redis.NewClient(&redis.Options{
+		Addr:     cfg.Addr,
+		Password: cfg.Password, // no password set
+		DB:       cfg.DB,       // use default DB
+	})
+}
+
 func Close() {
 	Temporal.Close()
 	Qdrant.Close()
 	McpClient.Close()
+	Redis.Close()
 }

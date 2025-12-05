@@ -31,3 +31,13 @@ type ChatWithLLMParams struct {
 	Tools     []openai.Tool
 	ModelName string
 }
+
+type MessagesReq struct {
+	SessionId string `json:"session_id"`
+	Question  string `json:"question"`
+}
+
+type UpdateMessagesReq struct {
+	SessionId string
+	Messages  []openai.ChatCompletionMessage
+}

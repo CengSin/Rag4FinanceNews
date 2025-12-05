@@ -11,6 +11,7 @@ import (
 type LLMActivities struct {
 }
 
+// Deprecated: 请使用 SessionActivities.GetStartMessages() 方法
 func (l *LLMActivities) ConstactParam(ctx context.Context, question string) ([]openai.ChatCompletionMessage, error) {
 	return []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: util.SystemPrompt},
