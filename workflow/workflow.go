@@ -2,11 +2,11 @@ package workflow
 
 import (
 	"fmt"
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"rag4financenew/activity"
+	"rag4financenew/client"
 	"rag4financenew/util"
 	"time"
 )
@@ -73,7 +73,26 @@ func ProcessArticleWorkflow(ctx workflow.Context, article activity.InputArticle)
 	return nil
 }
 
-func RagChatWorkflow(ctx workflow.Context, question string) (string, error) {
+func ChatWorkflow(ctx workflow.Context) error {
+	if err := workflow.SetUpdateHandler(
+		ctx,
+		"chat_messages",
+		RagChatWorkflow,
+	); err != nil {
+		return err
+	}
+
+	_, err := workflow.AwaitWithTimeout(ctx, 10*time.Minute, func() bool {
+		return false
+	})
+	if err != nil {
+		return err
+	}
+
+	return ctx.Err()
+}
+
+func RagChatWorkflow(ctx workflow.Context, req activity.MessagesReq) (string, error) {
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -88,39 +107,22 @@ func RagChatWorkflow(ctx workflow.Context, question string) (string, error) {
 
 	m := activity.MCPActivities{}
 	l := activity.LLMActivities{}
+	c := activity.SessionActivities{}
+
+	var messages []openai.ChatCompletionMessage
+	// 查询sessionID的历史聊天记录
+	if err := workflow.ExecuteActivity(ctx, c.GetStartMessages, req).Get(ctx, &messages); err != nil {
+		return "", err
+	}
+
 	// 定义最大循环次数，防止 LLM 发疯陷入死循环
 	const MaxTurns = 10
-
-	var tools []mcp.Tool
-	if err := workflow.ExecuteActivity(ctx, m.ListTools).Get(ctx, &tools); err != nil {
-		return "", err
-	}
-
-	var openAITools []openai.Tool
-	for _, t := range tools {
-		openAITools = append(openAITools, openai.Tool{
-			Type: "function",
-			Function: &openai.FunctionDefinition{
-				Name:        t.Name,
-				Description: t.Description,
-				Parameters:  t.InputSchema, // MCP 的 Schema 和 OpenAI 是完全兼容的！
-			},
-		})
-	}
-
-	// Step 1: LLM 思考 (这里简化，假设我们直接构建 Prompt 让 LLM 决定)
-	// 在实际代码中，这一步通常是调用 LLM 的 ChatCompletion API (也是一个 Activity)
-	// 假设 LLM 返回了一个 "Tool Call" 指令
-	var messages []openai.ChatCompletionMessage
-	if err := workflow.ExecuteActivity(ctx, l.ConstactParam, question).Get(ctx, &messages); err != nil {
-		return "", err
-	}
 
 	for i := 0; i < MaxTurns; i++ {
 		chatParams := activity.ChatWithLLMParams{
 			ModelName: util.ModelName,
 			Messages:  messages,
-			Tools:     openAITools,
+			Tools:     client.Tools,
 		}
 		resp := new(openai.ChatCompletionMessage)
 		if err := workflow.ExecuteActivity(ctx, l.ChatWithLLM, chatParams).Get(ctx, &resp); err != nil {
@@ -130,6 +132,15 @@ func RagChatWorkflow(ctx workflow.Context, question string) (string, error) {
 		messages = append(messages, *resp)
 
 		if len(resp.ToolCalls) == 0 {
+
+			// 直接执行并返回结果
+			workflow.Go(ctx, func(ctx workflow.Context) {
+				workflow.ExecuteActivity(ctx, c.UpdateMessages, activity.UpdateMessagesReq{
+					SessionId: req.SessionId,
+					Messages:  messages,
+				})
+			})
+
 			return resp.Content, nil
 		}
 

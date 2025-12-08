@@ -20,10 +20,12 @@ func main() {
 	var cfg config.Config
 	cleanenv.ReadConfig("./config/config.yaml", &cfg)
 
+	client.InitRedis(cfg.Redis)
 	client.InitQdrant(cfg.Qdrant)
 	client.InitLLMs(cfg.OpenAI)
 	client.InitTemporal(cfg.Temporal)
 	client.InitMcpClient(cfg.McpServer)
+	client.InitTools()
 	defer client.Close()
 
 	// 2. 启动 Worker (处理任务的消费者)
@@ -33,10 +35,13 @@ func main() {
 	w := worker.New(client.Temporal, api.TaskQueueName, worker.Options{})
 	w.RegisterWorkflow(workflow.ProcessArticleWorkflow)
 	w.RegisterWorkflow(workflow.RagChatWorkflow)
+	w.RegisterWorkflow(workflow.ChatWorkflow)
+	w.RegisterWorkflow(workflow.ChatSessionWorkflow)
 
 	w.RegisterActivity(&activity.Activities{})
 	w.RegisterActivity(&activity.LLMActivities{})
 	w.RegisterActivity(&activity.MCPActivities{})
+	w.RegisterActivity(&activity.SessionActivities{})
 
 	// 异步启动 Worker
 	go func() {
@@ -53,11 +58,12 @@ func main() {
 	articleGrp.POST("/process", api.ProcessedArticle)
 
 	sessionGrp := e.Group("/session")
-	sessionGrp.GET("/new", api.NewSession)
+	sessionGrp.GET("/chat/messages", api.NewSession)
 
 	aiGrp := e.Group("/ai")
 	aiGrp.POST("/query", api.Question)
 	aiGrp.POST("/temporal", api.QuestionOnTemporal)
+	aiGrp.POST("/new/session", api.ChatWithLLM)
 
 	if err := e.Start(":8081"); err != nil {
 		log.Fatalln(err)

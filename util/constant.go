@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	CollectionName = "financial_articles"
-	ModelName      = "openai/gpt-5"
+	ChatHistoryFormat = "chat_history:%s"
+	CollectionName    = "financial_articles"
+	ModelName         = "openai/gpt-5"
 )
 
 var (
