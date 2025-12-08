@@ -114,10 +114,10 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 
 	// 2. 阻塞 Workflow，防止它结束
 	// 我们可以设置一个超时的 Await，如果 30 分钟没有新消息，就结束会话
-	for {
-		// 等待直到 context 被取消或满足特定退出条件
-		workflow.AwaitWithTimeout(ctx, 10*time.Minute, func() bool {
-			return false // 这里演示简单的一直运行，实际需配合超时逻辑
-		})
-	}
+	// 等待直到 context 被取消或满足特定退出条件
+	workflow.AwaitWithTimeout(ctx, 10*time.Minute, func() bool {
+		return false // 这里演示简单的一直运行，实际需配合超时逻辑
+	})
+
+	return nil
 }

@@ -7,56 +7,66 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"rag4financenew/client"
 	"rag4financenew/util"
+	"sort"
+	"strings"
 )
 
 func QueryMessagesBySessionId(ctx context.Context, sessionId string) ([]openai.ChatCompletionMessage, error) {
-	msgs, err := client.Redis.SMembers(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId)).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	var result []openai.ChatCompletionMessage
-	for _, msg := range msgs {
-		var m openai.ChatCompletionMessage
-		if err = m.UnmarshalJSON([]byte(msg)); err != nil {
+	chatKey := fmt.Sprintf(util.ChatHistoryFormat, sessionId)
+	if client.Redis.Exists(ctx, chatKey).Val() > 0 {
+		var result []openai.ChatCompletionMessage
+		msgs := client.Redis.Get(ctx, chatKey).Val()
+		if err := json.Unmarshal([]byte(msgs), &result); err != nil {
 			return nil, err
 		}
-		result = append(result, m)
+		return result, nil
 	}
-
-	return result, nil
+	return []openai.ChatCompletionMessage{}, nil
 }
 
-func UpdateMessagesBySessionId(ctx context.Context, sessionId string, messages []openai.ChatCompletionMessage) error {
+func UpdateMessages(ctx context.Context, sessionId string, messages []openai.ChatCompletionMessage) error {
 	if len(messages) == 0 {
 		return nil
 	}
 
-	chat, err := json.Marshal(messages)
+	bytes, err := json.Marshal(messages)
 	if err != nil {
 		return err
 	}
-	return client.Redis.Set(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId), string(chat), 0).Err()
-}
 
-func AppendMessagesBySessionId(ctx context.Context, sessionId string, messages []openai.ChatCompletionMessage) error {
-	if len(messages) == 0 {
-		return nil
-	}
-
-	for _, message := range messages {
-		bytes, err := message.MarshalJSON()
-		if err != nil {
-			return err
-		}
-		if exist, err := client.Redis.SIsMember(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId), string(bytes)).Result(); err != nil {
-			return err
-		} else if !exist {
-			if err = client.Redis.SAdd(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId), string(bytes), 0).Err(); err != nil {
-				return err
-			}
-		}
+	if err = client.Redis.Set(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId), string(bytes), 0).Err(); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func ListSessions(ctx context.Context) ([]string, error) {
+	pattern := fmt.Sprintf(util.ChatHistoryFormat, "*")
+	iter := client.Redis.Scan(ctx, 0, pattern, 0).Iterator()
+
+	prefix := fmt.Sprintf(util.ChatHistoryFormat, "")
+	sessions := make([]string, 0)
+	for iter.Next(ctx) {
+		key := iter.Val()
+		sessionId := strings.TrimPrefix(key, prefix)
+		if sessionId == "" {
+			continue
+		}
+		sessions = append(sessions, sessionId)
+	}
+
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+
+	sort.Strings(sessions)
+	return sessions, nil
+}
+
+func DeleteSession(ctx context.Context, sessionId string) error {
+	if sessionId == "" {
+		return fmt.Errorf("session id is empty")
+	}
+	return client.Redis.Del(ctx, fmt.Sprintf(util.ChatHistoryFormat, sessionId)).Err()
 }

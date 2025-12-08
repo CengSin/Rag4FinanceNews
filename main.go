@@ -59,6 +59,9 @@ func main() {
 
 	sessionGrp := e.Group("/session")
 	sessionGrp.GET("/chat/messages", api.NewSession)
+	sessionGrp.GET("/history", api.GetSessionHistory)
+	sessionGrp.GET("/list", api.ListSessions)
+	sessionGrp.DELETE("/:session_id", api.DeleteSession)
 
 	aiGrp := e.Group("/ai")
 	aiGrp.POST("/query", api.Question)
