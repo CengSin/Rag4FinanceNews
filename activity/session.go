@@ -24,5 +24,5 @@ func (s *SessionActivities) GetStartMessages(ctx context.Context, req MessagesRe
 }
 
 func (s *SessionActivities) UpdateMessages(ctx context.Context, req UpdateMessagesReq) error {
-	return dao.AppendMessagesBySessionId(ctx, req.SessionId, req.Messages)
+	return dao.UpdateMessages(ctx, req.SessionId, req.Messages)
 }
