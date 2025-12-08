@@ -36,6 +36,7 @@ func main() {
 	w.RegisterWorkflow(workflow.ProcessArticleWorkflow)
 	w.RegisterWorkflow(workflow.RagChatWorkflow)
 	w.RegisterWorkflow(workflow.ChatWorkflow)
+	w.RegisterWorkflow(workflow.ChatSessionWorkflow)
 
 	w.RegisterActivity(&activity.Activities{})
 	w.RegisterActivity(&activity.LLMActivities{})
@@ -62,7 +63,7 @@ func main() {
 	aiGrp := e.Group("/ai")
 	aiGrp.POST("/query", api.Question)
 	aiGrp.POST("/temporal", api.QuestionOnTemporal)
-	aiGrp.POST("/session", api.QuestionWithSessionOnTemporal)
+	aiGrp.POST("/new/session", api.ChatWithLLM)
 
 	if err := e.Start(":8081"); err != nil {
 		log.Fatalln(err)

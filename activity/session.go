@@ -20,7 +20,6 @@ func (s *SessionActivities) GetStartMessages(ctx context.Context, req MessagesRe
 		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: util.SystemPrompt})
 	}
 
-	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: req.Question})
 	return messages, nil
 }
 

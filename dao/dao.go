@@ -18,7 +18,7 @@ func QueryMessagesBySessionId(ctx context.Context, sessionId string) ([]openai.C
 	var result []openai.ChatCompletionMessage
 	for _, msg := range msgs {
 		var m openai.ChatCompletionMessage
-		if err = json.Unmarshal([]byte(msg), &m); err != nil {
+		if err = m.UnmarshalJSON([]byte(msg)); err != nil {
 			return nil, err
 		}
 		result = append(result, m)
