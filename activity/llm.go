@@ -3,7 +3,11 @@ package activity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/sashabaranov/go-openai"
+	"go.temporal.io/sdk/activity"
+	"log"
+	"rag4financenew/ai"
 	"rag4financenew/client"
 	"rag4financenew/util"
 )
@@ -36,4 +40,15 @@ func (l *LLMActivities) ChatWithLLM(ctx context.Context, params ChatWithLLMParam
 	}
 
 	return &(resp.Choices[0].Message), nil
+}
+
+func (l *LLMActivities) Embedding(ctx context.Context, text string) ([]float32, error) {
+	logger := activity.GetLogger(ctx)
+	logger.Info(fmt.Sprintf("正在生成向量，文本长度: %d\n", len(text)))
+
+	vec, err := ai.GetEmbedding(ctx, text)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return vec, nil
 }

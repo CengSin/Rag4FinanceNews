@@ -9,7 +9,7 @@ import (
 
 // 配置常量
 const (
-	CollectionName = "financial_articles"
+	CollectionName = "724_news_col"
 	VectorSize     = 1536 // 对应 qwen/qwen3-embedding-8b
 	QdrantHost     = "localhost"
 	QdrantPort     = 6334
@@ -57,9 +57,9 @@ func main() {
 		}
 		// 4. 创建 Payload 索引 (为了高性能过滤)
 		// Qdrant 的 Go SDK 稍微有些底层，需要操作 PointsClient
-		createIndex(ctx, client, "column_id", qdrant.FieldType_FieldTypeKeyword)
-		createIndex(ctx, client, "tags", qdrant.FieldType_FieldTypeKeyword)
-		createIndex(ctx, client, "publish_ts", qdrant.FieldType_FieldTypeInteger) // 用于时间范围查询
+		createIndex(ctx, client, "created_at", qdrant.FieldType_FieldTypeText)
+		createIndex(ctx, client, "summary", qdrant.FieldType_FieldTypeKeyword)
+		createIndex(ctx, client, "title", qdrant.FieldType_FieldTypeKeyword)
 	}
 }
 
