@@ -9,6 +9,7 @@ import (
 	"rag4financenew/activity"
 	"rag4financenew/client"
 	"rag4financenew/workflow"
+	"time"
 )
 
 type NewsHandler struct {
@@ -16,6 +17,8 @@ type NewsHandler struct {
 }
 
 func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute*5)
+	defer cancelFunc()
 	// e.Rows 里的数据是原始数组，e.Table.Columns 存了列名信息
 	// 我们要把它们“拉链”到一起
 
@@ -65,7 +68,7 @@ func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 			TaskQueue: SyncQueueName,
 		}
 
-		we, err := client.SyncTemporal.ExecuteWorkflow(context.Background(), options, workflow.HandleCdcEvent, event)
+		we, err := client.SyncTemporal.ExecuteWorkflow(ctx, options, workflow.HandleCdcEvent, event)
 		if err != nil {
 			log.Printf("启动 Workflow 失败: %v", err)
 			return nil // 不要返回 err，否则 Canal 会停止监听

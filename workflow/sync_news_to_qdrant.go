@@ -12,7 +12,7 @@ import (
 func HandleCdcEvent(ctx workflow.Context, event activity.CDCEvent) error {
 	// 设置重试策略
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: 30 * time.Second,
+		StartToCloseTimeout: time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval: time.Second * 1,
 			MaximumInterval: time.Second * 10,

@@ -6,6 +6,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 	"log"
+	"time"
 )
 
 var (
@@ -24,7 +25,8 @@ func createStreamableHTTPClient(server string) {
 		log.Fatalln("create streamable http client failed, err ", err)
 	}
 
-	ctx := context.Background()
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancelFunc()
 
 	// 3. 握手 (Initialize)
 	// 就像 USB 插入时的握手，交换能力信息

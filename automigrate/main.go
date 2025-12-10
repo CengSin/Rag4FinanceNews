@@ -58,10 +58,8 @@ func main() {
 		// 4. 创建 Payload 索引 (为了高性能过滤)
 		// Qdrant 的 Go SDK 稍微有些底层，需要操作 PointsClient
 		createIndex(ctx, client, "created_at", qdrant.FieldType_FieldTypeText)
-		createIndex(ctx, client, "updated_at", qdrant.FieldType_FieldTypeText)
 		createIndex(ctx, client, "summary", qdrant.FieldType_FieldTypeKeyword)
 		createIndex(ctx, client, "title", qdrant.FieldType_FieldTypeKeyword)
-		createIndex(ctx, client, "manual_updated_at", qdrant.FieldType_FieldTypeText) // 用于时间范围查询
 	}
 }
 
