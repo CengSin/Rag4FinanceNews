@@ -4,51 +4,32 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.temporal.io/sdk/worker"
 	"log"
-	"rag4financenew/activity"
 	"rag4financenew/api"
 	"rag4financenew/client"
 	"rag4financenew/config"
+	"rag4financenew/handle"
 	"rag4financenew/util"
-	"rag4financenew/workflow"
 )
 
 func main() {
 	util.InitSystemPrompt()
 
 	var cfg config.Config
-	cleanenv.ReadConfig("./config/config.yaml", &cfg)
+	_ = cleanenv.ReadConfig("./config/config.yaml", &cfg)
 
 	client.InitRedis(cfg.Redis)
 	client.InitQdrant(cfg.Qdrant)
 	client.InitLLMs(cfg.OpenAI)
-	client.InitTemporal(cfg.Temporal)
+	client.InitTemporal(cfg.Temporal, &client.Temporal)
+	client.InitTemporal(cfg.SyncTemporal, &client.SyncTemporal)
 	client.InitMcpClient(cfg.McpServer)
 	client.InitTools()
 	defer client.Close()
 
-	// 2. 启动 Worker (处理任务的消费者)
-	// 在微服务架构中，Worker 通常是独立运行的进程。
-	// 为了演示方便，我们在这里和 HTTP Server 一起启动。
-	// ------------------------------------------------------
-	w := worker.New(client.Temporal, api.TaskQueueName, worker.Options{})
-	w.RegisterWorkflow(workflow.ProcessArticleWorkflow)
-	w.RegisterWorkflow(workflow.RagChatWorkflow)
-	w.RegisterWorkflow(workflow.ChatWorkflow)
-	w.RegisterWorkflow(workflow.ChatSessionWorkflow)
+	runWorker()
 
-	w.RegisterActivity(&activity.Activities{})
-	w.RegisterActivity(&activity.LLMActivities{})
-	w.RegisterActivity(&activity.MCPActivities{})
-	w.RegisterActivity(&activity.SessionActivities{})
-
-	// 异步启动 Worker
-	go func() {
-		if err := w.Run(worker.InterruptCh()); err != nil {
-			log.Fatalln("Worker 启动失败", err)
-		}
-	}()
+	go handle.ChangDataCapture(cfg.Cdc)
 
 	e := echo.New()
 

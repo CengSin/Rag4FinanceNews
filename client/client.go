@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	Qdrant   *qdrant.Client
-	AI       *openai.Client
-	Temporal client.Client
-	Redis    *redis.Client
+	Qdrant       *qdrant.Client
+	AI           *openai.Client
+	Temporal     client.Client
+	SyncTemporal client.Client
+	Redis        *redis.Client
 )
 
 func InitQdrant(cfg *config.QdrantConfig) {
@@ -22,7 +23,7 @@ func InitQdrant(cfg *config.QdrantConfig) {
 		panic("qdrant config is nil")
 	}
 
-	client, err := qdrant.NewClient(&qdrant.Config{
+	c, err := qdrant.NewClient(&qdrant.Config{
 		Host: cfg.Host,
 		Port: cfg.Port,
 	})
@@ -30,7 +31,7 @@ func InitQdrant(cfg *config.QdrantConfig) {
 		log.Fatalln("qdrant client init failed, err ", err)
 	}
 
-	Qdrant = client
+	Qdrant = c
 }
 
 func InitLLMs(cfg *config.OpenAIConfig) {
@@ -48,18 +49,19 @@ func InitLLMs(cfg *config.OpenAIConfig) {
 	AI = openai.NewClientWithConfig(conf)
 }
 
-func InitTemporal(cfg *config.TemporalConfig) {
+func InitTemporal(cfg *config.TemporalConfig, destClient *client.Client) {
 	if cfg == nil {
 		panic("temporal config is nil")
 	}
 
-	cl, err := client.Dial(client.Options{
-		HostPort: cfg.HostPort,
+	c, err := client.Dial(client.Options{
+		HostPort:  cfg.HostPort,
+		Namespace: cfg.Namespace,
 	})
 	if err != nil {
 		log.Fatalln("connntect to temporal failed, err ", err)
 	}
-	Temporal = cl
+	*destClient = c
 }
 
 func InitRedis(cfg *config.RedisConfig) {
@@ -76,6 +78,7 @@ func InitRedis(cfg *config.RedisConfig) {
 
 func Close() {
 	Temporal.Close()
+	SyncTemporal.Close()
 	Qdrant.Close()
 	McpClient.Close()
 	Redis.Close()

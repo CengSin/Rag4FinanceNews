@@ -42,3 +42,18 @@ type UpdateMessagesReq struct {
 	SessionId string
 	Messages  []openai.ChatCompletionMessage
 }
+
+type TypeNameEnum string
+
+const (
+	News     TypeNameEnum = "news"
+	Articles TypeNameEnum = "articles"
+)
+
+// CDCEvent 定义了从 MySQL 捕获的一个事件
+type CDCEvent struct {
+	TableName string                 `json:"table_name"` // 表名
+	Action    string                 `json:"action"`     // insert, update
+	TypeName  TypeNameEnum           `json:"typename"`   // news 快讯, article 文章
+	Data      map[string]interface{} // 关键！我们将数组转为 map: {"id": 1, "content": "hello"}
+}

@@ -8,6 +8,11 @@ openAI:
 
 temporal:
   hostPort: "localhost:7233"
+  namespace: "default"
+
+syncTemporal:
+  hostPort: "localhost:7233"
+  namespace: "CDC_SYNC_NAMESPACE"
 
 mcpServer: "http://localhost:8085/mcp"
 
@@ -15,3 +20,11 @@ redis:
   addr: "localhost:6379"
   password: ""
   DB: 1
+
+cdc:
+  addr: "localhost:58811"
+  user: "root"
+  password: ""
+  dbName: "baoer"
+  tableName:
+  - "content_messages"
