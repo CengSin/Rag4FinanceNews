@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/sashabaranov/go-openai"
 	"go.temporal.io/sdk/activity"
-	"log"
 	"rag4financenew/ai"
 	"rag4financenew/client"
 	"rag4financenew/util"
@@ -48,7 +47,7 @@ func (l *LLMActivities) Embedding(ctx context.Context, text string) ([]float32, 
 
 	vec, err := ai.GetEmbedding(ctx, text)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	return vec, nil
 }

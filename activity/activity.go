@@ -7,7 +7,6 @@ import (
 	"github.com/qdrant/go-client/qdrant"
 	"github.com/sashabaranov/go-openai"
 	"go.temporal.io/sdk/activity"
-	"log"
 	"rag4financenew/ai"
 	"rag4financenew/client"
 	"rag4financenew/util"
@@ -56,7 +55,7 @@ func (a *Activities) EmbedActivity(ctx context.Context, text string) ([]float32,
 
 	vec, err := ai.GetEmbedding(ctx, text)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	return vec, nil
 }
