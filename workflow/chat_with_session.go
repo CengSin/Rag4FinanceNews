@@ -17,6 +17,7 @@ type ChatHistory struct {
 
 // 你的 Workflow 定义
 func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
+	logger := workflow.GetLogger(ctx)
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -54,6 +55,37 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 		ctx = workflow.WithActivityOptions(ctx, ao)
 
 		_ = historyLoadedFuture.Get(ctx, nil)
+
+		var selectedTools []openai.Tool
+		// 🔥 第一步：动态路由
+		var intent *activity.RouterIntent
+		// 调用刚才写的 Activity
+		err := workflow.ExecuteActivity(ctx, llmAct.DynamicRouteQuery, req.Question).Get(ctx, &intent)
+		if err != nil {
+			logger.Info("Router activity failed, defaulting to general_chat", "error", err)
+		} else {
+			// 🔥 第二步：根据意图筛选工具
+			if intent.ToolName == "general_chat" {
+				// 闲聊模式：不给任何工具，防止 LLM 瞎调用
+				selectedTools = nil
+			} else {
+				// 工具模式：去 client.Tools 里找这个名字的工具
+				// 这样无论你后期加了什么 MCP 工具，这里都不用改代码！
+				for _, tool := range client.Tools {
+					if tool.Function.Name == intent.ToolName {
+						selectedTools = append(selectedTools, tool)
+						break // 找到一个就可以停了（或者支持多选）
+					}
+				}
+
+				// 兜底：如果路由返回了名字但没找到工具（极少见），可以fallback到全量工具
+				if len(selectedTools) == 0 {
+					// logger.Warn("Router selected unknown tool, falling back to all tools", "tool", intent.ToolName)
+					selectedTools = client.Tools
+				}
+			}
+		}
+
 		// A. 将用户消息加入历史
 		history = append(history, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: req.Question})
 
@@ -66,13 +98,14 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 			var llmResponse openai.ChatCompletionMessage
 			err := workflow.ExecuteActivity(ctx, llmAct.ChatWithLLM, activity.ChatWithLLMParams{
 				Messages:  history,
-				Tools:     client.Tools,
+				Tools:     selectedTools,
 				ModelName: util.ModelName,
 			}).Get(ctx, &llmResponse)
 			if err != nil {
 				return ChatResp{SessionID: req.SessionID, ReplyMessage: err.Error()}, err
 			}
 
+			history = append(history, llmResponse)
 			if len(llmResponse.ToolCalls) == 0 {
 				// 直接执行并返回结果
 				workflow.Go(ctx, func(ctx workflow.Context) {
@@ -84,7 +117,6 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 				return ChatResp{SessionID: req.SessionID, ReplyMessage: llmResponse.Content}, nil
 			}
 
-			history = append(history, llmResponse)
 			for _, tool := range llmResponse.ToolCalls {
 				var toolResult string
 
