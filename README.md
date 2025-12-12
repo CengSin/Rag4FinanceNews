@@ -2,6 +2,12 @@
 
 面向财经资讯的 RAG 与对话系统。采用 Temporal 协调文章处理与会话，Echo 提供 HTTP 接口，Qdrant 存储向量，Redis 持久化会话，MCP 工具扩展检索能力。
 
+### V0.1.1 Agent 能力
+- 会话路由：基于关键词判定结构化/语义查询，过滤工具列表，无法判定时要求用户澄清。
+- 工具调用：通过 MCP 暴露的查询/检索工具，遵循 `systemPrompt.md` 的规则。
+- CDC 控制：HTTP 接口 `/cdc/start`、`/cdc/stop` 可启动/停止多配置的 CDC 监听。
+- 强类型 CDC：使用 `CdcEnvelope` + 业务 struct（如 `ContentMessageEvent`）传输 CDC 事件，避免类型漂移/解码失败。
+
 ### 功能与流程
 - 文章处理：HTTP 接收原始文章，Temporal Workflow 负责摘要、向量化和写入 Qdrant。
 - 会话与工具调用：基于会话的聊天，支持工具调用（结构化检索、语义检索），历史消息存 Redis。
