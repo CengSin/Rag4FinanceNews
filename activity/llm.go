@@ -117,3 +117,43 @@ func (l *LLMActivities) DynamicRouteQuery(ctx context.Context, query string) (*R
 
 	return &intent, nil
 }
+
+// RewriteQuery 新增：改写查询的 Activity
+func (l *LLMActivities) RewriteQuery(ctx context.Context, params ChatWithLLMParams) (string, error) {
+	// 1. 构造 Prompt
+	// 我们只需要最近的几轮对话作为上下文，不需要太长
+	systemPrompt := `你是一个专业的对话查询改写助手。
+你的任务是将用户的最新问题（包含代词、指代模糊）改写为一个**独立、完整、不仅包含代词指代实体**的查询语句。
+如果用户的问题已经很完整，或者与上下文无关（如打招呼），请原样返回。
+不要回答问题，只返回改写后的句子。`
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+	}
+
+	// 2. 注入历史上下文（建议只取最近 3-5 轮，避免干扰）
+	// 注意：params.Messages 包含了完整的历史，我们在 Activity 内部做个简单的切片处理
+	historyLen := len(params.Messages)
+	start := 0
+	if historyLen > 6 {
+		start = historyLen - 6
+	}
+
+	for _, message := range params.Messages[start:] {
+		if message.Role != openai.ChatMessageRoleSystem {
+			messages = append(messages, message)
+		}
+	}
+
+	req := openai.ChatCompletionRequest{
+		Model:       "openai/gpt-4o-mini",
+		Messages:    messages,
+		Temperature: 0.1,
+	}
+
+	resp, err := client.AI.CreateChatCompletion(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	rewritten := resp.Choices[0].Message.Content
+	return rewritten, nil
+}
