@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/qdrant/go-client/qdrant"
 	"go.temporal.io/sdk/temporal"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-func HandleCdcEvent(ctx workflow.Context, event activity.CDCEvent) error {
+func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 	// 设置重试策略
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
@@ -28,14 +29,15 @@ func HandleCdcEvent(ctx workflow.Context, event activity.CDCEvent) error {
 	eventAct := activity.EventActivities{}
 
 	var payload map[string]any
-	if err := workflow.ExecuteActivity(ctx, eventAct.ProcessEvent, event).Get(ctx, &payload); err != nil {
+	if err := workflow.ExecuteActivity(ctx, eventAct.ProcessEvent, env).Get(ctx, &payload); err != nil {
 		return err
 	}
 
 	if len(payload) == 0 {
 		return nil
 	}
-	textToIndex := payload["textToIndex"].(string)
+
+	textToIndex := fmt.Sprint(payload["textToIndex"])
 	if len(textToIndex) == 0 {
 		return nil
 	}
