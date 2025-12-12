@@ -7,6 +7,7 @@ import (
 	"rag4financenew/activity"
 	"rag4financenew/client"
 	"rag4financenew/util"
+	"strings"
 	"time"
 )
 
@@ -17,7 +18,8 @@ type ChatHistory struct {
 
 // 你的 Workflow 定义
 func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
-	logger := workflow.GetLogger(ctx)
+	var exit bool
+
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -56,38 +58,35 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 
 		_ = historyLoadedFuture.Get(ctx, nil)
 
-		var selectedTools []openai.Tool
-		// 🔥 第一步：动态路由
-		var intent *activity.RouterIntent
-		// 调用刚才写的 Activity
-		err := workflow.ExecuteActivity(ctx, llmAct.DynamicRouteQuery, req.Question).Get(ctx, &intent)
-		if err != nil {
-			logger.Info("Router activity failed, defaulting to general_chat", "error", err)
-		} else {
-			// 🔥 第二步：根据意图筛选工具
-			if intent.ToolName == "general_chat" {
-				// 闲聊模式：不给任何工具，防止 LLM 瞎调用
-				selectedTools = nil
-			} else {
-				// 工具模式：去 client.Tools 里找这个名字的工具
-				// 这样无论你后期加了什么 MCP 工具，这里都不用改代码！
-				for _, tool := range client.Tools {
-					if tool.Function.Name == intent.ToolName {
-						selectedTools = append(selectedTools, tool)
-						break // 找到一个就可以停了（或者支持多选）
-					}
-				}
-
-				// 兜底：如果路由返回了名字但没找到工具（极少见），可以fallback到全量工具
-				if len(selectedTools) == 0 {
-					// logger.Warn("Router selected unknown tool, falling back to all tools", "tool", intent.ToolName)
-					selectedTools = client.Tools
-				}
-			}
+		// 🔥 新增：检查用户是否想退出
+		// 简单的关键词匹配，也可以用 LLM 判断，但关键词更省钱更快
+		lowerQ := strings.ToLower(strings.TrimSpace(req.Question))
+		if lowerQ == "退出" || lowerQ == "exit" || lowerQ == "bye" || lowerQ == "拜拜" || lowerQ == "quit" {
+			exit = true // 设置退出标志
+			return ChatResp{SessionID: req.SessionID, ReplyMessage: "好的，再见！会话已结束。👋"}, nil
 		}
 
 		// A. 将用户消息加入历史
 		history = append(history, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: req.Question})
+
+		selectedTools := toolsRoute(ctx, llmAct, history, req)
+
+		if len(history) > 10 {
+			newHistory := make([]openai.ChatCompletionMessage, 0)
+			// 1. 保留 System Prompt (锚点)
+			if len(history) > 0 && history[0].Role == openai.ChatMessageRoleSystem {
+				newHistory = append(newHistory, history[0])
+			}
+			// 2. 切取最近的 N 条 (除去 System Prompt 后)
+			// 简单算法：直接取后 N 条，确保不越界
+			startIndex := len(history) - 10
+			if startIndex < 1 {
+				startIndex = 1
+			} // 保护
+			newHistory = append(newHistory, history[startIndex:]...)
+
+			history = newHistory
+		}
 
 		for i := 0; i < 10; i++ {
 			// B. 可以在这里做滑动窗口处理 (Context Window Management)
@@ -148,8 +147,52 @@ func ChatSessionWorkflow(ctx workflow.Context, req ChatReq) error {
 	// 我们可以设置一个超时的 Await，如果 30 分钟没有新消息，就结束会话
 	// 等待直到 context 被取消或满足特定退出条件
 	workflow.AwaitWithTimeout(ctx, 10*time.Minute, func() bool {
-		return false // 这里演示简单的一直运行，实际需配合超时逻辑
+		return exit // 这里演示简单的一直运行，实际需配合超时逻辑
 	})
 
 	return nil
+}
+
+func toolsRoute(ctx workflow.Context, llmAct activity.LLMActivities, history []openai.ChatCompletionMessage, req ChatReq) []openai.Tool {
+	logger := workflow.GetLogger(ctx)
+	var rewriteQuery string
+	if err := workflow.ExecuteActivity(ctx, llmAct.RewriteQuery, activity.ChatWithLLMParams{
+		Messages: history,
+	}).Get(ctx, &rewriteQuery); err != nil {
+		logger.Error("RewriteQuery activity failed", "error", err)
+		rewriteQuery = req.Question // 失败就用原始问题
+	}
+
+	logger.Info("Rewritten Query: " + rewriteQuery)
+
+	var selectedTools []openai.Tool
+	// 🔥 第一步：动态路由
+	var intent *activity.RouterIntent
+	// 调用刚才写的 Activity
+	err := workflow.ExecuteActivity(ctx, llmAct.DynamicRouteQuery, rewriteQuery).Get(ctx, &intent)
+	if err != nil {
+		logger.Info("Router activity failed, defaulting to general_chat", "error", err)
+	} else {
+		// 🔥 第二步：根据意图筛选工具
+		if intent.ToolName == "general_chat" {
+			// 闲聊模式：不给任何工具，防止 LLM 瞎调用
+			selectedTools = nil
+		} else {
+			// 工具模式：去 client.Tools 里找这个名字的工具
+			// 这样无论你后期加了什么 MCP 工具，这里都不用改代码！
+			for _, tool := range client.Tools {
+				if tool.Function.Name == intent.ToolName {
+					selectedTools = append(selectedTools, tool)
+					break // 找到一个就可以停了（或者支持多选）
+				}
+			}
+
+			// 兜底：如果路由返回了名字但没找到工具（极少见），可以fallback到全量工具
+			if len(selectedTools) == 0 {
+				// logger.Warn("Router selected unknown tool, falling back to all tools", "tool", intent.ToolName)
+				selectedTools = client.Tools
+			}
+		}
+	}
+	return selectedTools
 }
