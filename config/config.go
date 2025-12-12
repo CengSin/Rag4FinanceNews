@@ -22,11 +22,11 @@ type RedisConfig struct {
 }
 
 type Cdc struct {
-	Addr      string   `yaml:"addr"`
-	User      string   `yaml:"user"`
-	Password  string   `yaml:"password"`
-	DbName    string   `yaml:"dbName"`
-	TableName []string `yaml:"tableName"`
+	Addr      string   `yaml:"addr" json:"addr"`
+	User      string   `yaml:"user" json:"user"`
+	Password  string   `yaml:"password" json:"password"`
+	DbName    string   `yaml:"dbName" json:"dbName"`
+	TableName []string `yaml:"tableName" json:"tableName"`
 }
 
 type Config struct {
@@ -36,5 +36,5 @@ type Config struct {
 	SyncTemporal *TemporalConfig `yaml:"syncTemporal"`
 	McpServer    string          `yaml:"mcpServer"`
 	Redis        *RedisConfig    `yaml:"redis"`
-	Cdc          *Cdc            `yaml:"cdc"`
+	Cdc          []Cdc           `yaml:"cdc"`
 }

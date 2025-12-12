@@ -39,18 +39,6 @@ func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 			rowData[col.Name] = row[colIndex]
 		}
 
-		if rowData["score"].(int64) != 2 {
-			return nil
-		}
-
-		if rowData["is_deleted"].(int8) == 1 {
-			return nil
-		}
-
-		if rowData["created_by"].(int64) != 1160671 {
-			return nil
-		}
-
 		// 2. 构造快递包裹
 		event := activity.CDCEvent{
 			TableName: e.Table.Name,

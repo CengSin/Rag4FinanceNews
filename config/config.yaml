@@ -22,9 +22,9 @@ redis:
   DB: 1
 
 cdc:
-  addr: "localhost:58811"
-  user: "root"
-  password: ""
-  dbName: "baoer"
-  tableName:
-  - "content_messages"
+  - addr: "localhost:58811"
+    user: "root"
+    password: ""
+    dbName: "baoer"
+    tableName:
+      - "content_messages"

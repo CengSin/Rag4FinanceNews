@@ -38,6 +38,18 @@ func (d *defaultHandle) Process(event CDCEvent) (map[string]any, error) {
 type newsHandle struct{}
 
 func (n newsHandle) Process(event CDCEvent) (map[string]any, error) {
+	if event.Data["score"].(int64) != 2 {
+		return nil, nil
+	}
+
+	if event.Data["is_deleted"].(int8) == 1 {
+		return nil, nil
+	}
+
+	if event.Data["created_by"].(int64) != 1160671 {
+		return nil, nil
+	}
+
 	createdAtStr := event.Data["created_at"]
 	createAt, _ := time.Parse(time.DateTime, createdAtStr.(string))
 	return map[string]any{

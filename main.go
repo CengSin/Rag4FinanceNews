@@ -27,9 +27,8 @@ func main() {
 	client.InitTools()
 	defer client.Close()
 
+	handle.SetDefaultCDC(cfg.Cdc)
 	runWorker()
-
-	go handle.ChangDataCapture(cfg.Cdc)
 
 	e := echo.New()
 
@@ -48,6 +47,10 @@ func main() {
 	aiGrp.POST("/query", api.Question)
 	aiGrp.POST("/temporal", api.QuestionOnTemporal)
 	aiGrp.POST("/new/session", api.ChatWithLLM)
+
+	cdcGrp := e.Group("/cdc")
+	cdcGrp.POST("/start", api.StartCDC)
+	cdcGrp.POST("/stop", api.StopCDC)
 
 	if err := e.Start(":8081"); err != nil {
 		log.Fatalln(err)
