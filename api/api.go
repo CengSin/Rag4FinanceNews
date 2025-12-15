@@ -171,3 +171,23 @@ func QuestionOnTemporal(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]interface{}{"answer": answer})
 }
+
+func Register(e *echo.Echo) {
+	articleGrp := e.Group("/article")
+	articleGrp.POST("/process", ProcessedArticle)
+
+	sessionGrp := e.Group("/session")
+	sessionGrp.GET("/chat/messages", NewSession)
+	sessionGrp.GET("/history", GetSessionHistory)
+	sessionGrp.GET("/list", ListSessions)
+	sessionGrp.DELETE("/:session_id", DeleteSession)
+
+	aiGrp := e.Group("/ai")
+	aiGrp.POST("/query", Question)
+	aiGrp.POST("/temporal", QuestionOnTemporal)
+	aiGrp.POST("/new/session", ChatWithLLM)
+
+	cdcGrp := e.Group("/cdc")
+	cdcGrp.POST("/start", StartCDC)
+	cdcGrp.POST("/stop", StopCDC)
+}

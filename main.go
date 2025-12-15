@@ -34,23 +34,7 @@ func main() {
 
 	e.Use(middleware.CORS())
 
-	articleGrp := e.Group("/article")
-	articleGrp.POST("/process", api.ProcessedArticle)
-
-	sessionGrp := e.Group("/session")
-	sessionGrp.GET("/chat/messages", api.NewSession)
-	sessionGrp.GET("/history", api.GetSessionHistory)
-	sessionGrp.GET("/list", api.ListSessions)
-	sessionGrp.DELETE("/:session_id", api.DeleteSession)
-
-	aiGrp := e.Group("/ai")
-	aiGrp.POST("/query", api.Question)
-	aiGrp.POST("/temporal", api.QuestionOnTemporal)
-	aiGrp.POST("/new/session", api.ChatWithLLM)
-
-	cdcGrp := e.Group("/cdc")
-	cdcGrp.POST("/start", api.StartCDC)
-	cdcGrp.POST("/stop", api.StopCDC)
+	api.Register(e)
 
 	if err := e.Start(":8081"); err != nil {
 		log.Fatalln(err)
