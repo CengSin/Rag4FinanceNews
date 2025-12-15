@@ -88,30 +88,38 @@ func (e *ContentMessageEvent) TextToIndex() string {
 
 func (e *ContentMessageEvent) ToPayload() (map[string]any, error) {
 	// 过滤不符合条件的事件
-	if e.Score != 2 {
-		return nil, nil
-	}
-	if e.IsDeleted == 1 {
-		return nil, nil
-	}
-	if e.CreatedBy != 1160671 {
-		return nil, nil
-	}
-
-	text := e.TextToIndex()
-	if text == "" {
-		return nil, errors.New("text to index is empty")
+	isDeleteAction := e.Action == "delete" || e.IsDeleted == 1
+	if isDeleteAction {
+		if e.Score != 2 {
+			return nil, nil
+		}
+		if e.CreatedBy != 1160671 {
+			return nil, nil
+		}
 	}
 
-	return map[string]any{
-		"id":          fmt.Sprint(e.Id),
-		"table_name":  e.TableName,
-		"title":       e.Title,
-		"summary":     e.Summary,
-		"type_name":   e.TypeName,
-		"created_at":  e.CreatedAt,
-		"textToIndex": text,
-	}, nil
+	payload := map[string]any{
+		"id":         fmt.Sprint(e.Id),
+		"table_name": e.TableName,
+		"action":     e.Action,
+		"is_deleted": e.IsDeleted,
+	}
+
+	// 只有非删除操作才需要 embedding 的文本
+	if !isDeleteAction {
+		text := e.TextToIndex()
+		if text == "" {
+			return nil, errors.New("text to index is empty")
+		}
+
+		payload["title"] = e.Title
+		payload["summary"] = e.Summary
+		payload["type_name"] = e.TypeName
+		payload["created_at"] = e.CreatedAt
+		payload["textToIndex"] = text
+	}
+
+	return payload, nil
 }
 
 // CdcEnvelope 用于跨进程传输 CDC 事件，避免接口无法反序列化的问题。

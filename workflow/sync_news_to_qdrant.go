@@ -37,6 +37,26 @@ func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 		return nil
 	}
 
+	// 2. 判断是否为删除操作
+	// 来源有二：Binlog 是 delete，或者 业务字段 is_deleted == 1
+	isDeleted := false
+	if val, ok := payload["action"]; ok && val == "delete" {
+		isDeleted = true
+	}
+	if val, ok := payload["is_deleted"]; ok {
+		// JSON 数字转 map[string]any 后通常是 float64
+		if v, ok := val.(int8); ok && v == 1 {
+			isDeleted = true
+		}
+	}
+
+	// 3. 分支执行
+	if isDeleted {
+		// --- 删除分支 ---
+		articleId := fmt.Sprint(payload["id"])
+		return workflow.ExecuteActivity(ctx, syncAct.QdrantDelete, articleId).Get(ctx, nil)
+	}
+
 	textToIndex := fmt.Sprint(payload["textToIndex"])
 	if len(textToIndex) == 0 {
 		return nil
@@ -65,7 +85,7 @@ func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 
 	// 3. 执行 Activity
 	// Temporal 会记录这一步的状态
-	if err := workflow.ExecuteActivity(ctx, syncAct.Qdrant, &row).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, syncAct.QdrantUpsert, &row).Get(ctx, nil); err != nil {
 		return err
 	}
 	return nil

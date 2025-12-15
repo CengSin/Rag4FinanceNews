@@ -20,14 +20,20 @@ type NewsHandler struct {
 func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancelFunc()
-	// e.Rows 里的数据是原始数组，e.Table.Columns 存了列名信息
-	// 我们要把它们“拉链”到一起
+
+	// ---------------------------------------------------------
+	// 知识点：go-mysql 的 RowsEvent 结构
+	// e.Action: insert, update, delete
+	// e.Rows: [][]interface{} 一个二维数组，表示受影响的行
+	// ---------------------------------------------------------
 
 	// 遍历所有变动行
 	for i, row := range e.Rows {
-		// 处理 Update 事件的特殊逻辑
+		// 1. 针对 UPDATE 事件的特殊处理
 		// Update 事件在 e.Rows 里是成对出现的：[旧值, 新值, 旧值, 新值...]
-		// 我们只需要同步“新值”，所以跳过偶数索引 (0, 2, 4...)
+		// 偶数索引 (0, 2...) 是旧值，奇数索引 (1, 3...) 是新值。
+		// 我们通常只关心"新值"（用于更新向量），但在极少数情况下，如果主键变了，可能需要用旧值删、新值加。
+		// 这里假设主键不变更，直接跳过旧值。
 		if e.Action == canal.UpdateAction && i%2 == 0 {
 			continue
 		}
@@ -55,24 +61,25 @@ func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 			Type:    activity.News,
 			Payload: raw,
 			Table:   msgEvent.Table(),
+			Action:  e.Action, // 显式传递 Action，供 Workflow 判断
 		}
 
 		// 3. 触发 Temporal Workflow
 		// 这里的 ID 用 TableName + PrimaryKey 组合最好，保证防抖和唯一性
 		// 假设第一个字段是主键，简单起见我们先用随机或表名
-		workflowId := fmt.Sprintf("sync-%s-%v", msgEvent.Table(), msgEvent.ID())
+		workflowId := fmt.Sprintf("sync-%s-%v-%s", msgEvent.Table(), msgEvent.ID(), e.Action)
 
 		options := temporalClient.StartWorkflowOptions{
 			ID:        workflowId,
 			TaskQueue: SyncQueueName,
 		}
 
-		we, err := client.SyncTemporal.ExecuteWorkflow(ctx, options, workflow.HandleCdcEvent, env)
+		_, err = client.SyncTemporal.ExecuteWorkflow(ctx, options, workflow.HandleCdcEvent, env)
 		if err != nil {
 			log.Printf("启动 Workflow 失败: %v", err)
 			return nil // 不要返回 err，否则 Canal 会停止监听
 		}
-		fmt.Printf("已触发 Workflow, RunID: %s, 数据: %v\n", we.GetRunID(), rowData["name"]) // 假设有个 name 字段
+		log.Printf("CDC 事件触发: Table=%s, Action=%s, ID=%v", e.Table.Name, e.Action, msgEvent.ID())
 	}
 
 	return nil
