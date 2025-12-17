@@ -175,6 +175,7 @@ func QuestionOnTemporal(c echo.Context) error {
 func Register(e *echo.Echo) {
 	articleGrp := e.Group("/article")
 	articleGrp.POST("/process", ProcessedArticle)
+	articleGrp.GET("/parse/:name", ParseLocalArticle)
 
 	sessionGrp := e.Group("/session")
 	sessionGrp.GET("/chat/messages", NewSession)

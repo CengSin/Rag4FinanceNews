@@ -20,11 +20,14 @@ func runWorker() {
 	w.RegisterWorkflow(workflow.RagChatWorkflow)
 	w.RegisterWorkflow(workflow.ChatWorkflow)
 	w.RegisterWorkflow(workflow.ChatSessionWorkflow)
+	w.RegisterWorkflow(workflow.ProcessingLongContentWorkflow)
 
 	w.RegisterActivity(&activity.Activities{})
 	w.RegisterActivity(&activity.LLMActivities{})
 	w.RegisterActivity(&activity.MCPActivities{})
 	w.RegisterActivity(&activity.SessionActivities{})
+	w.RegisterActivity(&activity.ProcessingActivities{})
+	w.RegisterActivity(&activity.SyncActivities{})
 
 	newsSyncWorker := worker.New(client.SyncTemporal, handle.SyncQueueName, worker.Options{})
 	newsSyncWorker.RegisterWorkflow(workflow.HandleCdcEvent)

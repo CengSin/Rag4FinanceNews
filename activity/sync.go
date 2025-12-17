@@ -20,6 +20,37 @@ func (s *SyncActivities) QdrantUpsert(ctx context.Context, rows *qdrant.PointStr
 	return err
 }
 
+type UpsertRow struct {
+	ID      string                 `json:"id"`
+	Vector  []float32              `json:"vector"`
+	Payload map[string]interface{} `json:"payload"`
+}
+
+type QdrantUpsertReq struct {
+	Rows    []*UpsertRow
+	ColName string
+}
+
+func (s *SyncActivities) QdrantBatchUpsertToCollection(ctx context.Context, req *QdrantUpsertReq) error {
+	var points []*qdrant.PointStruct
+	for _, row := range req.Rows {
+		point := &qdrant.PointStruct{
+			Id:      qdrant.NewID(row.ID),
+			Vectors: qdrant.NewVectors(row.Vector...),
+			Payload: qdrant.NewValueMap(row.Payload),
+		}
+		points = append(points, point)
+	}
+
+	wait := true
+	_, err := client.Qdrant.Upsert(ctx, &qdrant.UpsertPoints{
+		CollectionName: req.ColName,
+		Points:         points,
+		Wait:           &wait,
+	})
+	return err
+}
+
 func (s *SyncActivities) QdrantDelete(ctx context.Context, id string) error {
 	wait := true
 	// Qdrant 删除操作
