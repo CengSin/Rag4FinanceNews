@@ -3,9 +3,11 @@ module rag4financenew
 go 1.25.3
 
 require (
+	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/go-mysql-org/go-mysql v1.13.0
 	github.com/google/uuid v1.6.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
+	github.com/invopop/jsonschema v0.13.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mark3labs/mcp-go v0.43.1
 	github.com/qdrant/go-client v1.16.2
@@ -18,6 +20,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -29,7 +32,6 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
-	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect

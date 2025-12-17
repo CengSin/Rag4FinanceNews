@@ -17,6 +17,21 @@ import (
 type LLMActivities struct {
 }
 
+func (l *LLMActivities) BatchEmbedding(ctx context.Context, texts []string) ([][]float32, error) {
+	logger := activity.GetLogger(ctx)
+	logger.Info(fmt.Sprintf("正在批量生成向量，文本数量: %d\n", len(texts)))
+
+	var allVecs [][]float32
+	for _, text := range texts {
+		vec, err := ai.GetEmbedding(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		allVecs = append(allVecs, vec)
+	}
+	return allVecs, nil
+}
+
 // Deprecated: 请使用 SessionActivities.GetStartMessages() 方法
 func (l *LLMActivities) ConstactParam(ctx context.Context, question string) ([]openai.ChatCompletionMessage, error) {
 	return []openai.ChatCompletionMessage{
