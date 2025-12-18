@@ -18,6 +18,12 @@ func (e EventActivities) ProcessEvent(ctx context.Context, env CdcEnvelope) (map
 			return nil, err
 		}
 		return event.ToPayload()
+	case Articles:
+		var event ArticleEntryEvent
+		if err := json.Unmarshal(env.Payload, &event); err != nil {
+			return nil, err
+		}
+		return event.ToPayload()
 	default:
 		return nil, fmt.Errorf("unsupported cdc type: %s", env.Type)
 	}

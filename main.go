@@ -24,6 +24,7 @@ func main() {
 	client.InitTemporal(cfg.Temporal, &client.Temporal)
 	client.InitTemporal(cfg.SyncTemporal, &client.SyncTemporal)
 	client.InitMcpClient(cfg.McpServer)
+	client.InitMysql(cfg.Mysql)
 	client.InitTools()
 	defer client.Close()
 

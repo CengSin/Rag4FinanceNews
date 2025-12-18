@@ -21,10 +21,17 @@ redis:
   password: ""
   DB: 1
 
+fpMysql:
+  host: "localhost"
+  port: 3306
+  userName: "root"
+  password: "rootpassword"
+  DB: "ivanka_content"
+
 cdc:
-  - addr: "localhost:58811"
+  - addr: "localhost:3306"
     user: "root"
-    password: ""
-    dbName: "baoer"
+    password: "rootpassword"
+    dbName: "ivanka_content"
     tableName:
-      - "content_messages"
+      - "article_entries"

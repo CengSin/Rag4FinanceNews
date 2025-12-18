@@ -21,6 +21,10 @@ func (a *ProcessingActivities) CleanAndChunk(ctx context.Context, htmlContent st
 	}
 	// 提取纯文本，这里可以加更复杂的逻辑，比如保留 <h1> 作为 Metadata
 	textContent := doc.Text()
+	return a.CleanAndChunkText(ctx, textContent, chunkSize, overlap)
+}
+
+func (a *ProcessingActivities) CleanAndChunkText(ctx context.Context, textContent string, chunkSize int, overlap int) (*ChunkResult, error) {
 	// 去除多余空行
 	textContent = strings.Join(strings.Fields(textContent), " ")
 

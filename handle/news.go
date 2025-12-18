@@ -58,7 +58,7 @@ func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 		}
 
 		env := activity.CdcEnvelope{
-			Type:    activity.News,
+			Type:    getType(e.Table.Name),
 			Payload: raw,
 			Table:   msgEvent.Table(),
 			Action:  e.Action, // 显式传递 Action，供 Workflow 判断
@@ -85,12 +85,47 @@ func (n *NewsHandler) OnRow(e *canal.RowsEvent) error {
 	return nil
 }
 
+func getType(name string) activity.TypeNameEnum {
+	switch name {
+	case "content_messages":
+		return activity.News
+	case "article_entries":
+		return activity.Articles
+	default:
+		return ""
+	}
+}
+
 func buildEvent(e *canal.RowsEvent, data map[string]any) activity.CDCEvent {
 	switch e.Table.Name {
 	case "content_messages":
 		return buildContentMessageEvent(e, data)
+	case "article_entries":
+		return buildArticleEntryEvent(e, data)
 	default:
 		return nil
+	}
+}
+
+func buildArticleEntryEvent(e *canal.RowsEvent, rowData map[string]any) *activity.ArticleEntryEvent {
+	isDeleted := rowData["is_deleted"].(int8)
+	createdBy := rowData["created_by"].(int64)
+	id := rowData["id"].(int64)
+	createdAt := parseTime(rowData["created_at"])
+	updatedAt := parseTime(rowData["updated_at"])
+
+	return &activity.ArticleEntryEvent{
+		TableName:    e.Table.Name,
+		Action:       e.Action,
+		TypeName:     activity.News,
+		Id:           id,
+		Title:        toString(rowData["title"]),
+		ContentShort: toString(rowData["content_short"]),
+		Content:      toString(rowData["content"]),
+		CreatedBy:    createdBy,
+		CreatedAt:    createdAt.Unix(),
+		UpdatedAt:    updatedAt.Unix(),
+		IsDeleted:    isDeleted == 1,
 	}
 }
 

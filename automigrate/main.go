@@ -9,7 +9,7 @@ import (
 
 // 配置常量
 const (
-	CollectionName = "724_news_col"
+	CollectionName = "fupengshuo_articles"
 	VectorSize     = 1536 // 对应 qwen/qwen3-embedding-8b
 	QdrantHost     = "localhost"
 	QdrantPort     = 6334
@@ -59,6 +59,7 @@ func main() {
 		// Qdrant 的 Go SDK 稍微有些底层，需要操作 PointsClient
 		createIndex(ctx, client, "created_at", qdrant.FieldType_FieldTypeText)
 		createIndex(ctx, client, "summary", qdrant.FieldType_FieldTypeKeyword)
+		createIndex(ctx, client, "textToIndex", qdrant.FieldType_FieldTypeKeyword)
 		createIndex(ctx, client, "title", qdrant.FieldType_FieldTypeKeyword)
 	}
 }
