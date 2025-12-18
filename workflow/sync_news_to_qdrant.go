@@ -3,14 +3,15 @@ package workflow
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/qdrant/go-client/qdrant"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"rag4financenew/activity"
+	"rag4financenew/util"
 	"time"
 )
 
 func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
+	logger := workflow.GetLogger(ctx)
 	// 设置重试策略
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
@@ -27,6 +28,7 @@ func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 	syncAct := activity.SyncActivities{}
 	llmAct := activity.LLMActivities{}
 	eventAct := activity.EventActivities{}
+	processAct := activity.ProcessingActivities{}
 
 	var payload map[string]any
 	if err := workflow.ExecuteActivity(ctx, eventAct.ProcessEvent, env).Get(ctx, &payload); err != nil {
@@ -50,10 +52,10 @@ func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 		}
 	}
 
+	articleId := fmt.Sprint(payload["id"])
 	// 3. 分支执行
 	if isDeleted {
 		// --- 删除分支 ---
-		articleId := fmt.Sprint(payload["id"])
 		return workflow.ExecuteActivity(ctx, syncAct.QdrantDelete, articleId).Get(ctx, nil)
 	}
 
@@ -62,30 +64,53 @@ func HandleCdcEvent(ctx workflow.Context, env activity.CdcEnvelope) error {
 		return nil
 	}
 
+	var chunkResult activity.ChunkResult
+	if err := workflow.ExecuteActivity(ctx, processAct.CleanAndChunkText, textToIndex, 500, 50).Get(ctx, &chunkResult); err != nil {
+		return err
+	}
+
+	// 2. 准备 Embedding 的文本 (关键修改点)
+	var textsToEmbed []string
+	for _, chunk := range chunkResult.Chunks {
+		// 【核心技巧】：为每个切片加上“全局上下文”
+		// 格式：标题 + 作者 + 正文片段
+		// 这样每个切片都变成了“自带主语”的独立微型文章
+		enrichedText := fmt.Sprintf("Title: %s\nContent: %s", payload["title"], chunk)
+		textsToEmbed = append(textsToEmbed, enrichedText)
+	}
+
 	// 执行embedding
-	var vector []float32
-	if err := workflow.ExecuteActivity(ctx, llmAct.Embedding, textToIndex).Get(ctx, &vector); err != nil {
+	var vectors [][]float32
+	if err := workflow.ExecuteActivity(ctx, llmAct.BatchEmbedding, textsToEmbed).Get(ctx, &vectors); err != nil {
 		return err
 	}
 
-	var rowId *qdrant.PointId
-	if err := workflow.ExecuteActivity(ctx, syncAct.QdrantQueryOrConstruct, vector).Get(ctx, &rowId); err != nil {
-		return err
+	var points []*activity.UpsertRow
+	for i, vector := range vectors {
+		chunkPayload := map[string]interface{}{
+			"id":          articleId,
+			"textToIndex": chunkResult.Chunks[i],
+			"summary":     payload["summary"],
+			"created_at":  payload["created_at"],
+			"title":       payload["title"],
+			"chunk_index": i,
+		}
+
+		pointId := uuid.New().String()
+		point := &activity.UpsertRow{
+			ID:      pointId,
+			Vector:  vector,
+			Payload: chunkPayload,
+		}
+
+		points = append(points, point)
 	}
 
-	if rowId == nil {
-		rowId = qdrant.NewID(uuid.New().String())
-	}
-
-	row := qdrant.PointStruct{
-		Id:      rowId,
-		Vectors: qdrant.NewVectors(vector...),
-		Payload: qdrant.NewValueMap(payload),
-	}
-
-	// 3. 执行 Activity
-	// Temporal 会记录这一步的状态
-	if err := workflow.ExecuteActivity(ctx, syncAct.QdrantUpsert, &row).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, syncAct.QdrantBatchUpsertToCollection, &activity.QdrantUpsertReq{
+		Rows:    points,
+		ColName: util.CollectionFupengshuoName,
+	}).Get(ctx, nil); err != nil {
+		logger.Error("向 Qdrant 批量写入向量失败", "错误", err)
 		return err
 	}
 	return nil

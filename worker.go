@@ -33,6 +33,7 @@ func runWorker() {
 	newsSyncWorker.RegisterWorkflow(workflow.HandleCdcEvent)
 	newsSyncWorker.RegisterActivity(&activity.SyncActivities{})
 	newsSyncWorker.RegisterActivity(&activity.EventActivities{})
+	newsSyncWorker.RegisterActivity(&activity.ProcessingActivities{})
 	newsSyncWorker.RegisterActivity(&activity.LLMActivities{})
 
 	// 异步启动 Worker

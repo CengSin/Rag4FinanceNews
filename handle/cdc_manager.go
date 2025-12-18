@@ -106,12 +106,14 @@ func newCanal(cfg config.Cdc) (*canal.Canal, error) {
 	canalCfg.User = cfg.User
 	canalCfg.Password = cfg.Password
 	canalCfg.Dump.ExecutionPath = "" // 仅增量
+	canalCfg.Dump.TableDB = cfg.DbName
+	canalCfg.Dump.Tables = cfg.TableName
 
-	var tableRegex []string
-	for _, tbName := range cfg.TableName {
-		tableRegex = append(tableRegex, fmt.Sprintf("%s\\.%s", cfg.DbName, tbName))
-	}
-	canalCfg.IncludeTableRegex = tableRegex
+	//var tableRegex []string
+	//for _, tbName := range cfg.TableName {
+	//	tableRegex = append(tableRegex, fmt.Sprintf("%s\\.%s", cfg.DbName, tbName))
+	//}
+	//canalCfg.IncludeTableRegex = tableRegex
 	canalCfg.ReadTimeout = time.Second * 30
 	canalCfg.HeartbeatPeriod = time.Second * 30
 

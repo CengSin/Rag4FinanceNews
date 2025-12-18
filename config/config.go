@@ -29,6 +29,14 @@ type Cdc struct {
 	TableName []string `yaml:"tableName" json:"tableName"`
 }
 
+type MysqlConfig struct {
+	Host     string `yaml:"host"`
+	Port     int64  `yaml:"port"`
+	User     string `yaml:"userName"`
+	Password string `yaml:"password"`
+	DbName   string `yaml:"DB"`
+}
+
 type Config struct {
 	Qdrant       *QdrantConfig   `yaml:"qdrant"`
 	OpenAI       *OpenAIConfig   `yaml:"openAI"`
@@ -37,4 +45,5 @@ type Config struct {
 	McpServer    string          `yaml:"mcpServer"`
 	Redis        *RedisConfig    `yaml:"redis"`
 	Cdc          []Cdc           `yaml:"cdc"`
+	Mysql        *MysqlConfig    `yaml:"fpMysql"`
 }

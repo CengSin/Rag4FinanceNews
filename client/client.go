@@ -5,6 +5,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sashabaranov/go-openai"
 	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"rag4financenew/config"
@@ -16,6 +17,7 @@ var (
 	Temporal     client.Client
 	SyncTemporal client.Client
 	Redis        *redis.Client
+	Mysql        *gorm.DB
 )
 
 func InitQdrant(cfg *config.QdrantConfig) {

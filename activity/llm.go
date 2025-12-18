@@ -71,7 +71,7 @@ func (l *LLMActivities) Embedding(ctx context.Context, text string) ([]float32, 
 	return vec, nil
 }
 
-// DynamicRouteQuery 动态分析用户意图 todo 当前只传递问题的话会丢失上下文，导致tools返回错误或者没有返回
+// DynamicRouteQuery 动态分析用户意图
 func (l *LLMActivities) DynamicRouteQuery(ctx context.Context, query string) (*RouterIntent, error) {
 	// 1. 动态构建工具描述清单
 	// 我们要把 client.Tools 里的内容变成 LLM 能读懂的菜单
